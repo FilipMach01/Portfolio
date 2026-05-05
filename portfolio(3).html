@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filip Mach — Portfolio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#000;--bg2:#060606;--border:#1a1a1a;--border-h:#333;--text:#bbb;--bright:#fff;--dim:#555;--muted:#222;--font:'JetBrains Mono',monospace}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;line-height:1.6;overflow-x:hidden;cursor:none}
+::selection{background:var(--bright);color:var(--bg)}
+
+/* GLITCH OVERLAY */
+#glitch-overlay{
+  position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:0;
+  font-family:var(--font);font-size:11px;overflow:hidden;color:var(--bright);
+  background:var(--bg);transition:opacity .05s;
+}
+#glitch-overlay.active{opacity:1}
+#glitch-text{white-space:pre;line-height:1.2;padding:1rem;overflow:hidden;height:100%}
+
+.page-glitch{animation:pageGlitch .15s linear}
+@keyframes pageGlitch{
+  0%{transform:translate(0)}
+  20%{transform:translate(-5px,3px) skewX(-2deg)}
+  40%{transform:translate(5px,-3px) skewX(2deg)}
+  60%{transform:translate(-3px,-2px) skewX(-1deg)}
+  80%{transform:translate(3px,2px) skewX(1deg)}
+  100%{transform:translate(0)}
+}
+
+.text-scramble{animation:textScramble .3s steps(3) infinite}
+@keyframes textScramble{
+  0%{opacity:1;transform:translateX(0)}
+  33%{opacity:.8;transform:translateX(-2px)}
+  66%{opacity:.9;transform:translateX(2px)}
+  100%{opacity:1;transform:translateX(0)}
+}
+
+canvas#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:1;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.006) 2px,rgba(255,255,255,0.006) 4px)}
+
+.cur{position:fixed;width:10px;height:17px;background:var(--bright);pointer-events:none;z-index:10000;mix-blend-mode:difference;transition:width .15s,height .15s;animation:bc 1s step-end infinite}
+.cur.wide{width:22px;height:22px;animation:none}
+@keyframes bc{50%{opacity:.4}}
+
+/* LOADER */
+#loader{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;padding:3rem;overflow:hidden;transition:opacity .4s,visibility .4s}
+#loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
+#boot-ascii{font-size:clamp(.38rem,.85vw,.65rem);line-height:1.15;color:var(--dim);white-space:pre;margin-bottom:2rem;opacity:0;transition:opacity .3s}
+#boot-ascii.show{opacity:1}
+#boot-log{font-size:.72rem;line-height:1.9;color:var(--dim);flex:1;overflow:hidden}
+#boot-log .line{opacity:0;transform:translateY(3px)}
+#boot-log .line.show{opacity:1;transform:translateY(0);transition:all .12s}
+#boot-log .line.bright{color:var(--bright)}
+#boot-log .ok{color:var(--text)}
+#boot-log .fail{color:#ff3333;text-decoration:line-through;opacity:1}
+.vibrate{animation:vibrate .4s linear}
+@keyframes vibrate{0%{transform:translateX(0)}10%{transform:translateX(-4px)}20%{transform:translateX(4px)}30%{transform:translateX(-4px)}40%{transform:translateX(4px)}50%{transform:translateX(-3px)}60%{transform:translateX(3px)}70%{transform:translateX(-2px)}80%{transform:translateX(2px)}90%{transform:translateX(-1px)}100%{transform:translateX(0)}}
+#boot-bar{margin-top:1rem;font-size:.72rem;color:var(--dim)}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:stretch;font-size:.7rem;height:36px}
+.nav-title{display:flex;align-items:center;padding-right:2rem;color:var(--dim);border-right:1px solid var(--border);white-space:nowrap}
+.nav-tabs{display:flex;list-style:none;align-items:stretch}
+.nav-tabs a{display:flex;align-items:center;padding:0 1.2rem;color:var(--dim);text-decoration:none;border-right:1px solid var(--border);transition:all .2s;white-space:nowrap}
+.nav-tabs a:hover,.nav-tabs a.active{color:var(--bright);background:var(--bg2)}
+.nav-tabs a::before{content:'> ';opacity:0;transition:opacity .2s}
+.nav-tabs a:hover::before{opacity:1}
+.nav-spacer{flex:1}
+.nav-clock{display:flex;align-items:center;color:var(--dim);padding-left:1.5rem;border-left:1px solid var(--border);font-size:.63rem}
+
+#page-content{opacity:0;transition:opacity .5s}
+#page-content.visible{opacity:1}
+section{position:relative;z-index:2}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:6rem 3rem 4rem;position:relative}
+.hero-prompt{font-size:.7rem;color:var(--dim);margin-bottom:2rem;opacity:0;animation:fadeIn .5s ease forwards .3s}
+.hero-prompt .path{color:var(--text)}
+.hero h1{font-size:clamp(2.8rem,7.5vw,6rem);font-weight:800;line-height:1.05;letter-spacing:-.04em;color:var(--bright)}
+.hero-line{display:block;overflow:hidden}
+.hero-line-inner{display:block;transform:translateY(110%);animation:slideUp .8s cubic-bezier(.22,1,.36,1) forwards}
+.hero-line:nth-child(2) .hero-line-inner{animation-delay:.12s}
+.hero-line:nth-child(3) .hero-line-inner{animation-delay:.24s}
+@keyframes slideUp{to{transform:translateY(0)}}
+@keyframes fadeIn{to{opacity:1}}
+.dim-text{color:var(--dim);font-weight:300}
+.outline-text{-webkit-text-stroke:1.5px var(--bright);-webkit-text-fill-color:transparent;transition:all .4s}
+.outline-text:hover{-webkit-text-fill-color:var(--bright)}
+.hero-float{position:absolute;font-size:.6rem;color:var(--muted);pointer-events:none}
+.hero-float.f1{top:18%;right:5%;animation:drift 7s ease-in-out infinite}
+.hero-float.f2{bottom:25%;right:10%;animation:drift 9s ease-in-out infinite 2s}
+.hero-float.f3{top:40%;right:2%;animation:drift 6s ease-in-out infinite 1s}
+@keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+.hero-meta{margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-end;font-size:.72rem;color:var(--dim);line-height:2;opacity:0;animation:fadeIn .6s ease forwards .6s}
+.hero-meta .desc{max-width:420px}
+.hero-stats-row{display:flex;gap:3rem;text-align:right}
+.hero-stats-row .st-val{font-size:1.8rem;font-weight:700;color:var(--bright);line-height:1}
+.hero-stats-row .st-lab{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+.scroll-ind{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-size:.6rem;color:var(--dim);text-align:center;letter-spacing:.15em;text-transform:uppercase;opacity:0;animation:fadeIn .5s ease forwards 1s}
+.scroll-ind::after{content:'';display:block;width:1px;height:30px;background:linear-gradient(to bottom,var(--dim),transparent);margin:8px auto 0;animation:pulse-s 2s ease-in-out infinite}
+@keyframes pulse-s{0%,100%{opacity:1}50%{opacity:.2}}
+
+.divider{font-size:.6rem;color:var(--muted);text-align:center;padding:1.5rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap;letter-spacing:.3em;position:relative;z-index:2}
+
+.sec{padding:6rem 3rem;max-width:1100px;margin:0 auto}
+.sec-label{font-size:.63rem;color:var(--dim);text-transform:uppercase;letter-spacing:.2em;margin-bottom:.75rem}
+.sec-label::before{content:'// '}
+.sec-title{font-size:clamp(1.8rem,4vw,3rem);font-weight:700;color:var(--bright);letter-spacing:-.03em;margin-bottom:3rem}
+
+/* TERMINAL WINDOW */
+.tw{border:1px solid var(--border);background:var(--bg);overflow:hidden;transition:border-color .3s;margin-bottom:1.5rem}
+.tw:hover{border-color:var(--border-h)}
+.tw-bar{display:flex;align-items:center;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:.63rem;color:var(--dim);gap:8px}
+.tw-dots{display:flex;gap:5px}
+.tw-dots span{width:8px;height:8px;border-radius:50%;border:1px solid var(--border)}
+.tw-body{padding:1.25rem 1.5rem}
+
+/* PROJECT LAYOUT */
+.proj-row{display:grid;grid-template-columns:auto 1fr;gap:0 2rem;align-items:start}
+.proj-num{font-size:2rem;font-weight:700;color:var(--muted);line-height:1;transition:color .3s}
+.tw:hover .proj-num{color:var(--bright)}
+.proj-content h3{font-size:1.1rem;font-weight:700;color:var(--bright);margin-bottom:.5rem}
+.proj-content p{font-size:.78rem;color:var(--dim);line-height:1.8;margin-bottom:1rem;max-width:550px}
+.proj-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:1.25rem}
+.proj-tag{font-size:.6rem;padding:2px 8px;border:1px solid var(--border);color:var(--dim);transition:all .3s}
+.proj-tag:hover{border-color:var(--bright);color:var(--bright)}
+
+.proj-feat-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+.proj-feat-head .proj-num{font-size:2.5rem}
+.proj-feat-badge{font-size:.6rem;padding:3px 10px;border:1px solid var(--text);color:var(--text);text-transform:uppercase;letter-spacing:.1em}
+
+/* DEMO AREA */
+.demo{border:1px solid var(--border);background:var(--bg2);padding:1rem 1.25rem;font-size:.75rem;margin-top:.5rem}
+.demo-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.15em;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+.demo input[type="text"],.demo textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  color:var(--bright);font-family:var(--font);font-size:.75rem;
+  padding:8px 10px;outline:none;resize:vertical;transition:border-color .2s;
+}
+.demo input[type="text"]:focus,.demo textarea:focus{border-color:var(--border-h)}
+.demo textarea{min-height:80px}
+.demo-btn{
+  display:inline-block;font-family:var(--font);font-size:.65rem;
+  color:var(--dim);padding:6px 16px;border:1px solid var(--border);
+  background:var(--bg);cursor:pointer;transition:all .2s;
+  text-transform:uppercase;letter-spacing:.08em;margin-top:.75rem;
+}
+.demo-btn:hover{background:var(--bright);color:var(--bg);border-color:var(--bright)}
+.demo-output{
+  margin-top:.75rem;padding:.75rem;border:1px solid var(--border);
+  background:var(--bg);font-size:.7rem;line-height:1.7;
+  color:var(--text);white-space:pre-wrap;word-break:break-all;
+  max-height:300px;overflow-y:auto;min-height:40px;
+}
+.demo-output .step{color:var(--dim)}
+.demo-output .highlight{color:var(--bright)}
+.demo-output .result{color:var(--bright);font-weight:700}
+
+/* BF specific */
+.bf-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.bf-examples{margin-top:.5rem;display:flex;gap:4px;flex-wrap:wrap}
+.bf-ex{font-size:.6rem;padding:2px 8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:all .2s}
+.bf-ex:hover{border-color:var(--bright);color:var(--bright)}
+
+/* YOYO DEMO */
+.yoyo-screen{
+  font-size:.55rem;line-height:1.15;color:var(--dim);
+  white-space:pre;padding:1rem;border:1px solid var(--border);
+  background:var(--bg);overflow:hidden;min-height:200px;
+  transition:color .3s;
+}
+
+/* SCRAPER DEMO */
+.scraper-log{
+  font-size:.7rem;line-height:1.7;color:var(--dim);
+  max-height:200px;overflow-y:auto;
+}
+.scraper-log .found{color:var(--bright)}
+
+/* SKILLS */
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1px;border:1px solid var(--border);background:var(--border)}
+.skill-cell{background:var(--bg);padding:1.25rem .75rem;text-align:center;font-size:.72rem;color:var(--dim);transition:all .25s;cursor:pointer;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.skill-cell:hover{background:var(--bright);color:var(--bg)}
+.sk-lv{display:block;font-size:.55rem;margin-top:6px;letter-spacing:.1em;color:var(--muted);transition:color .25s}
+.skill-cell:hover .sk-lv{color:var(--bg)}
+
+/* EXPERIENCE */
+.exp-stack{display:flex;flex-direction:column;gap:1px}
+.exp-row{display:grid;grid-template-columns:180px 1fr;border:1px solid var(--border);transition:border-color .3s}
+.exp-row:hover{border-color:var(--border-h)}
+.exp-date{padding:1.5rem;border-right:1px solid var(--border);font-size:.63rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
+.exp-info{padding:1.5rem}
+.exp-info h3{font-size:.9rem;font-weight:700;color:var(--bright);margin-bottom:2px}
+.exp-role{font-size:.7rem;color:var(--dim);margin-bottom:.75rem}
+.exp-info p{font-size:.75rem;color:var(--dim);line-height:1.7}
+
+/* BEYOND */
+.beyond-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;border:1px solid var(--border);background:var(--border)}
+.beyond-cell{background:var(--bg);padding:2rem 1.5rem;transition:background .3s}
+.beyond-cell:hover{background:var(--bg2)}
+.bc-head{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.15em;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+.beyond-cell h3{font-size:1rem;font-weight:700;color:var(--bright);margin-bottom:.5rem}
+.beyond-cell p{font-size:.75rem;color:var(--dim);line-height:1.75}
+
+/* CONTACT */
+.contact-sec{padding:8rem 3rem;max-width:1100px;margin:0 auto;position:relative;z-index:2}
+.contact-big{font-size:clamp(2rem,5vw,4rem);font-weight:700;color:var(--bright);letter-spacing:-.03em;line-height:1.1;margin-bottom:2rem}
+.contact-sub{font-size:.75rem;color:var(--dim);line-height:2;margin-bottom:2.5rem;max-width:400px}
+.contact-links{display:flex;gap:1px}
+.c-link{font-size:.72rem;color:var(--dim);text-decoration:none;padding:10px 24px;border:1px solid var(--border);transition:all .25s;text-transform:uppercase;letter-spacing:.1em}
+.c-link:hover{background:var(--bright);color:var(--bg);border-color:var(--bright)}
+
+footer{border-top:1px solid var(--border);padding:0 1.5rem;display:flex;justify-content:space-between;align-items:center;font-size:.6rem;color:var(--muted);height:28px;position:relative;z-index:2}
+footer span{padding:0 1rem;border-right:1px solid var(--border);height:100%;display:flex;align-items:center}
+footer span:last-child{border-right:none}
+
+.rv{opacity:0;transform:translateY(25px);transition:all .7s cubic-bezier(.22,1,.36,1)}
+.rv.vis{opacity:1;transform:translateY(0)}
+.rv-d1{transition-delay:.08s}.rv-d2{transition-delay:.16s}.rv-d3{transition-delay:.24s}.rv-d4{transition-delay:.32s}
+
+@media(max-width:800px){
+  .hero{padding:5rem 1.25rem 3rem}.sec{padding:4rem 1.25rem}.contact-sec{padding:5rem 1.25rem}
+  nav{padding:0 .75rem;font-size:.6rem}.nav-tabs a{padding:0 .7rem}.nav-clock{display:none}
+  .proj-row{grid-template-columns:1fr}.proj-feat-grid{grid-template-columns:1fr !important}
+  .bf-row{grid-template-columns:1fr}.beyond-grid{grid-template-columns:1fr}
+  .exp-row{grid-template-columns:1fr}.exp-date{border-right:none;border-bottom:1px solid var(--border);padding:1rem 1.5rem}
+  .hero-float{display:none}.cur{display:none}.skills-grid{grid-template-columns:repeat(3,1fr)}
+  .hero-meta{flex-direction:column;gap:2rem}.hero-stats-row{text-align:left}
+  .contact-links{flex-wrap:wrap}footer span{padding:0 .5rem}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+<div class="cur" id="cursor"></div>
+<div id="glitch-overlay"><div id="glitch-text"></div></div>
+
+<div id="loader">
+  <pre id="boot-ascii"></pre>
+  <div id="boot-log"></div>
+  <div id="boot-bar"><span id="boot-progress"></span></div>
+</div>
+
+<div id="page-content">
+
+<nav>
+  <div class="nav-title">filip@dev:~$</div>
+  <ul class="nav-tabs">
+    <li><a href="#projects">projects</a></li>
+    <li><a href="#skills">skills</a></li>
+    <li><a href="#experience">experience</a></li>
+    <li><a href="#beyond">beyond</a></li>
+    <li><a href="#contact">contact</a></li>
+  </ul>
+  <div class="nav-spacer"></div>
+  <div class="nav-clock" id="clock"></div>
+</nav>
+
+<section class="hero">
+  <div class="hero-prompt"><span class="path">~/portfolio</span> $ cat about.txt</div>
+  <h1>
+    <span class="hero-line"><span class="hero-line-inner">Filip Mach</span></span>
+    <span class="hero-line"><span class="hero-line-inner"><span class="outline-text">Computer</span> Science</span></span>
+    <span class="hero-line"><span class="hero-line-inner"><span class="dim-text">&</span> Engineering</span></span>
+  </h1>
+  <div class="hero-float f1">$ uptime: 4+ years</div>
+  <div class="hero-float f2">PID 1337 -- active</div>
+  <div class="hero-float f3">[####------] 42%</div>
+  <div class="hero-meta">
+    <div class="desc">Backend developer. Computer vision<br>enthusiast. Sponsored yoyo athlete.<br>Building at the intersection of<br>code, math, and creativity.</div>
+    <div class="hero-stats-row">
+      <div><div class="st-val">4+</div><div class="st-lab">yrs python</div></div>
+      <div><div class="st-val">15+</div><div class="st-lab">projects</div></div>
+      <div><div class="st-val">1</div><div class="st-lab">startup</div></div>
+    </div>
+  </div>
+  <div class="scroll-ind" id="scrollEgg" onclick="triggerGlitch()" style="cursor:none">scroll</div>
+</section>
+
+<div class="divider">- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -</div>
+
+<!-- ══════ PROJECTS ══════ -->
+<section id="projects" class="sec">
+  <div class="sec-label rv">featured work</div>
+  <div class="sec-title rv rv-d1">Projects</div>
+
+  <!-- 01 YOYO JUDGE -->
+  <div class="tw rv rv-d2">
+    <div class="tw-bar"><div class="tw-dots"><span></span><span></span><span></span></div>yoyo_vision.py -- bash</div>
+    <div class="tw-body">
+      <div class="proj-feat-head"><div class="proj-num">01</div><div class="proj-feat-badge">featured</div></div>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:2rem">
+        <div>
+          <h3 style="font-size:1.6rem;font-weight:700;color:var(--bright);margin-bottom:.75rem">Yoyo Judging Game</h3>
+          <p style="font-size:.8rem;color:var(--dim);line-height:1.8;margin-bottom:1.25rem">Computer vision system detecting yoyo trick mounts in real-time using MobileNetV2 and EfficientNet-Lite. Built with OpenCV and Pygame on Linux with Wayland/XCB support.</p>
+          <div class="proj-tags">
+            <span class="proj-tag">Python</span><span class="proj-tag">OpenCV</span>
+            <span class="proj-tag">MobileNetV2</span><span class="proj-tag">Pygame</span>
+            <span class="proj-tag">Computer Vision</span>
+          </div>
+        </div>
+        <div>
+          <div class="demo">
+            <div class="demo-label">live demo -- vision simulator</div>
+            <div class="yoyo-screen" id="yoyoScreen"></div>
+            <button class="demo-btn" onclick="yoyoDetect()">run detection</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 REED-SOLOMON -->
+  <div class="tw rv">
+    <div class="tw-bar"><div class="tw-dots"><span></span><span></span><span></span></div>reed_solomon.py -- bash</div>
+    <div class="tw-body proj-row">
+      <div class="proj-num">02</div>
+      <div class="proj-content">
+        <h3>Reed-Solomon Error Correction Encoder</h3>
+        <p>Python implementation of Reed-Solomon encoding using Galois Field GF(256) arithmetic, polynomial multiplication, and generator polynomial construction. The same algorithm used in QR codes, CDs, and deep-space communication.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Python</span><span class="proj-tag">Galois Fields</span>
+          <span class="proj-tag">GF(256)</span><span class="proj-tag">Polynomials</span>
+          <span class="proj-tag">Error Correction</span>
+        </div>
+        <div class="demo">
+          <div class="demo-label">try it -- reed-solomon encoder</div>
+          <div style="display:flex;gap:8px;align-items:end">
+            <div style="flex:1">
+              <div style="font-size:.6rem;color:var(--dim);margin-bottom:4px">message (text or comma-separated bytes):</div>
+              <input type="text" id="rsInput" value="HELLO" placeholder="Enter message...">
+            </div>
+            <div>
+              <div style="font-size:.6rem;color:var(--dim);margin-bottom:4px">ecc symbols:</div>
+              <input type="text" id="rsEcc" value="4" style="width:50px;text-align:center">
+            </div>
+            <button class="demo-btn" onclick="rsEncode()" style="margin-top:0">encode</button>
+          </div>
+          <div class="demo-output" id="rsOutput">$ waiting for input...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 BRAINFUCK -->
+  <div class="tw rv">
+    <div class="tw-bar"><div class="tw-dots"><span></span><span></span><span></span></div>brainfuck.py -- bash</div>
+    <div class="tw-body proj-row">
+      <div class="proj-num">03</div>
+      <div class="proj-content">
+        <h3>Brainfuck Interpreter</h3>
+        <p>Fully functional interpreter for the esoteric Brainfuck language. Handles parsing, memory tape, loop matching, and I/O. Understanding languages at the lowest level.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Python</span><span class="proj-tag">Parsing</span>
+          <span class="proj-tag">Language Design</span><span class="proj-tag">Interpreters</span>
+        </div>
+        <div class="demo">
+          <div class="demo-label">try it -- brainfuck interpreter</div>
+          <div class="bf-row">
+            <div>
+              <div style="font-size:.6rem;color:var(--dim);margin-bottom:4px">program:</div>
+              <textarea id="bfCode" rows="4">[-]++++++[>+++++++++++<-]>+.[-]+++++++++[>++++++++++++<-]>.---.------.++++++++.[-]++++[>++++++++<-]>.[-]++++++++[>++++++++++++++<-]>++++.------------.---.[-]++++[>++++++++<-]>.[-]++++++++[>++++++++++++++<-]>+++.----------------.+++++++++++++++.---.---..[-]++++[>++++++++<-]>.[-]++++++++[>++++++++++++++<-]>++++.---------------.+++++++++++++++++++.----.[-]++++[>++++++++<-]>+.</textarea>
+              <div class="bf-examples">
+                <span class="bf-ex" onclick="bfLoad('hello')">Hello World</span>
+                <span class="bf-ex" onclick="bfLoad('add')">1+1</span>
+                <span class="bf-ex" onclick="bfLoad('loop')">Count A-Z</span>
+                <span class="bf-ex" onclick="bfLoad('sierpinski')">Sierpinski</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:.6rem;color:var(--dim);margin-bottom:4px">input (for , instruction):</div>
+              <input type="text" id="bfInput" placeholder="optional input...">
+              <button class="demo-btn" onclick="bfRun()">execute</button>
+            </div>
+          </div>
+          <div class="demo-output" id="bfOutput">$ waiting for program...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 SCRAPER -->
+  <div class="tw rv">
+    <div class="tw-bar"><div class="tw-dots"><span></span><span></span><span></span></div>scraper.py -- bash</div>
+    <div class="tw-body proj-row">
+      <div class="proj-num">04</div>
+      <div class="proj-content">
+        <h3>Bratislava Events Scraper</h3>
+        <p>Automated Facebook events pipeline for Bratislava with keyword matching via an Excel-based Slovak dictionary. Cloud-deployed using Bright Data proxies and Firebase/Firestore for storage.</p>
+        <div class="proj-tags">
+          <span class="proj-tag">Python</span><span class="proj-tag">Bright Data</span>
+          <span class="proj-tag">Firebase</span><span class="proj-tag">Web Scraping</span>
+        </div>
+        <div class="demo">
+          <div class="demo-label">simulation -- scraper pipeline</div>
+          <button class="demo-btn" onclick="scraperRun()" id="scraperBtn">run scraper</button>
+          <div class="demo-output scraper-log" id="scraperOutput">$ ready to scrape...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<div class="divider">= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =</div>
+
+<!-- SKILLS -->
+<section id="skills" class="sec">
+  <div class="sec-label rv">technical arsenal</div>
+  <div class="sec-title rv rv-d1">Skills</div>
+  <div class="skills-grid rv rv-d2">
+    <a class="skill-cell" href="https://python.org" target="_blank">Python<span class="sk-lv">█████</span></a>
+    <a class="skill-cell" href="https://djangoproject.com" target="_blank">Django<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://flask.palletsprojects.com" target="_blank">Flask<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://opencv.org" target="_blank">OpenCV<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://pygame.org" target="_blank">Pygame<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://pytorch.org" target="_blank">ML<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://learn.microsoft.com/en-us/dotnet/csharp/" target="_blank">C#<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">JavaScript<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://developer.mozilla.org/en-US/docs/Web/HTML" target="_blank">HTML/CSS<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://postgresql.org" target="_blank">PostgreSQL<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://docker.com" target="_blank">Docker<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://firebase.google.com" target="_blank">Firebase<span class="sk-lv">███░░</span></a>
+    <a class="skill-cell" href="https://kernel.org" target="_blank">Linux<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://git-scm.com" target="_blank">Git<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://scrapy.org" target="_blank">Scraping<span class="sk-lv">████░</span></a>
+    <a class="skill-cell" href="https://cisco.com/c/en/us/training-events/training-certifications/certifications.html" target="_blank">Networking<span class="sk-lv">██░░░</span></a>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience" class="sec">
+  <div class="sec-label rv">journey</div>
+  <div class="sec-title rv rv-d1">Experience</div>
+  <div class="exp-stack">
+    <div class="exp-row rv rv-d1">
+      <div class="exp-date">2024 -- present</div>
+      <div class="exp-info"><h3>Freelance Web Developer</h3><div class="exp-role">Independent</div><p>Building custom websites for clients. Full ownership from design to deployment.</p></div>
+    </div>
+    <div class="exp-row rv rv-d2">
+      <div class="exp-date">2024 -- present</div>
+      <div class="exp-info"><h3>Minimalistic Studio</h3><div class="exp-role">Cold Caller / Sales</div><p>Client acquisition for a web development studio through cold calling. Pitching services and closing deals.</p></div>
+    </div>
+    <div class="exp-row rv rv-d3">
+      <div class="exp-date">2022 -- present</div>
+      <div class="exp-info"><h3>Smichovska SPŠ</h3><div class="exp-role">IT -- Secondary Technical School</div><p>Programming, Cisco networking, electrical engineering, CS fundamentals. Daily: Fedora + Hyprland.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- BEYOND -->
+<section id="beyond" class="sec">
+  <div class="sec-label rv">the full picture</div>
+  <div class="sec-title rv rv-d1">Beyond the code</div>
+  <div class="beyond-grid rv rv-d2">
+    <div class="beyond-cell"><div class="bc-head">01 -- athlete</div><h3>Sponsored Yoyo Player</h3><p>Sponsored by Ace Yoyos. Competing at events and creating content. Building a CV system to judge tricks. Launching yoyo courses across the Czech Republic.</p></div>
+    <div class="beyond-cell"><div class="bc-head">02 -- entrepreneur</div><h3>Business at 18</h3><p>Running sales for Minimalistic Studio. Building websites freelance. Real clients, real deadlines, real cold calls.</p></div>
+    <div class="beyond-cell"><div class="bc-head">03 -- writer</div><h3>Creative Writer</h3><p>Author of serialized Czech fairy tales -- a 38-episode novel-length series and a multi-generational community saga.</p></div>
+    <div class="beyond-cell"><div class="bc-head">04 -- linux</div><h3>Power User</h3><p>Fedora + Hyprland daily driver. Terminal-first workflow. Open source advocate. github.com/FilipMach01</p></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" class="contact-sec">
+  <div class="sec-label rv">get in touch</div>
+  <div class="contact-big rv rv-d1">Let's build<br><span class="dim-text">something great.</span></div>
+  <div class="contact-sub rv rv-d2">Open for opportunities, collaborations,<br>or conversations about code and yoyos.</div>
+  <div class="contact-links rv rv-d3">
+    <a href="https://github.com/FilipMach01" class="c-link" target="_blank">github</a>
+    <a href="mailto:your@email.com" class="c-link">email</a>
+    <a href="https://www.linkedin.com/in/filip-mach-4ab8a03b7/" class="c-link" target="_blank">linkedin</a>
+  </div>
+</section>
+
+<footer><span>filip@dev:~$</span><span>2026</span><span>Prague, CZ</span><span>UTF-8</span><span id="ft-time"></span><span><a href="https://github.com/FilipMach01" target="_blank" style="color:var(--dim);text-decoration:none;transition:color .2s" onmouseenter="this.style.color='var(--bright)'" onmouseleave="this.style.color='var(--dim)'">github</a></span><span><a href="https://www.linkedin.com/in/filip-mach-4ab8a03b7/" target="_blank" style="color:var(--dim);text-decoration:none;transition:color .2s" onmouseenter="this.style.color='var(--bright)'" onmouseleave="this.style.color='var(--dim)'">linkedin</a></span></footer>
+
+</div>
+
+<script>
+// ══════ BG CANVAS ══════
+const canvas=document.getElementById('bg-canvas'),ctx=canvas.getContext('2d');
+let W,H,mx=-1e3,my=-1e3;const chars='.,:;+*?%#@'.split(''),pts=[];const GRID=22,INF=180;
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;pts.length=0;const c=Math.ceil(W/GRID),r=Math.ceil(H/GRID);for(let i=0;i<r;i++)for(let j=0;j<c;j++)pts.push({x:j*GRID+GRID/2,y:i*GRID+GRID/2,a:0.04,ta:0.04})}
+function drawBg(){ctx.clearRect(0,0,W,H);ctx.font='11px JetBrains Mono,monospace';ctx.textAlign='center';ctx.textBaseline='middle';for(const p of pts){const dx=mx-p.x,dy=my-p.y,d=Math.sqrt(dx*dx+dy*dy);if(d<INF){const t=1-d/INF;p.ta=0.06+t*0.55;ctx.fillStyle=`rgba(255,255,255,${p.a})`;ctx.fillText(chars[Math.floor(t*(chars.length-1))],p.x,p.y)}else{p.ta=0.04;ctx.fillStyle=`rgba(255,255,255,${p.a})`;ctx.fillText('.',p.x,p.y)}p.a+=(p.ta-p.a)*0.12}requestAnimationFrame(drawBg)}
+addEventListener('resize',resize);document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});resize();drawBg();
+
+// ══════ BOOT ══════
+const bootLines=[{t:'BIOS v3.14 -- POST check',d:120},{t:'Memory: 16384 MB OK',d:80},{t:'Detecting devices...',d:150},{t:'  /dev/sda -- 512GB NVMe                   [  OK  ]',d:70},{t:'  /dev/input/yoyo0 -- Ace Yoyos Pro        [  OK  ]',d:100},{t:'  /dev/video0 -- OpenCV Camera             [  OK  ]',d:80},{t:'',d:40},{t:'Loading kernel: filip-os 6.3.0-mit ...',d:200},{t:'Mounting /home/filip/portfolio ...',d:120},{t:'Starting services:',d:60},{t:'  python3.12                               [  OK  ]',d:80},{t:'  reed-solomon-encoder                     [  OK  ]',d:70},{t:'  brainfuck-interpreter                    [  OK  ]',d:90},{t:'  opencv-vision                            [  OK  ]',d:70},{t:'  sleep-schedule                           [ FAIL ]',d:100,fail:1},{t:'  creativity-daemon                        [  OK  ]',d:80},{t:'',d:40},{t:'All systems operational.',d:120,bright:1},{t:'Welcome, visitor.',d:150,bright:1},{t:'Loading portfolio...',d:200,bright:1}];
+(function(){const log=document.getElementById('boot-log'),ascii=document.getElementById('boot-ascii'),prog=document.getElementById('boot-progress'),loader=document.getElementById('loader'),page=document.getElementById('page-content');ascii.textContent=` ███████╗██╗██╗     ██╗██████╗\n ██╔════╝██║██║     ██║██╔══██╗\n █████╗  ██║██║     ██║██████╔╝\n ██╔══╝  ██║██║     ██║██╔═══╝\n ██║     ██║███████╗██║██║\n ╚═╝     ╚═╝╚══════╝╚═╝╚═╝`;setTimeout(()=>ascii.classList.add('show'),150);let t=800;bootLines.forEach((l,i)=>{t+=l.d;setTimeout(()=>{const d=document.createElement('div');d.className='line';if(l.bright)d.classList.add('bright');let h=l.t;if(h.includes('[  OK  ]'))h=h.replace('[  OK  ]','<span class="ok">[  OK  ]</span>');if(l.fail)h=h.replace('[ FAIL ]','<span class="fail">[ FAIL ]</span>');d.innerHTML=h;log.appendChild(d);requestAnimationFrame(()=>{d.classList.add('show');if(l.fail){setTimeout(()=>d.classList.add('vibrate'),50)}});const p=Math.min(Math.floor(((i+1)/bootLines.length)*100),100),f=Math.floor(p/5);prog.textContent=`[${'#'.repeat(f)}${'-'.repeat(20-f)}] ${p}%`},t)});t+=700;setTimeout(()=>{loader.classList.add('hidden');page.classList.add('visible')},t)})();
+
+// ══════ CURSOR ══════
+const cur=document.getElementById('cursor');document.addEventListener('mousemove',e=>{cur.style.left=e.clientX+'px';cur.style.top=e.clientY+'px'});document.querySelectorAll('a,.tw,.skill-cell,.beyond-cell,.c-link,.exp-row,.demo-btn,.bf-ex,.proj-tag').forEach(el=>{el.addEventListener('mouseenter',()=>cur.classList.add('wide'));el.addEventListener('mouseleave',()=>cur.classList.remove('wide'))});
+
+// ══════ CLOCK ══════
+function tick(){const t=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=t;document.getElementById('ft-time').textContent=t}tick();setInterval(tick,1000);
+
+// ══════ SCROLL REVEAL ══════
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:0.06,rootMargin:'0px 0px -30px 0px'});document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+
+// ══════ NAV ACTIVE ══════
+const secs=document.querySelectorAll('section[id]');addEventListener('scroll',()=>{const y=scrollY+200;secs.forEach(s=>{const l=document.querySelector(`.nav-tabs a[href="#${s.id}"]`);if(l)l.classList.toggle('active',y>=s.offsetTop&&y<s.offsetTop+s.offsetHeight)})});
+
+// ══════════════════════════════════════════
+// REED-SOLOMON ENCODER
+// ══════════════════════════════════════════
+function rsEncode() {
+  const input = document.getElementById('rsInput').value.trim();
+  const nsym = parseInt(document.getElementById('rsEcc').value) || 4;
+  const out = document.getElementById('rsOutput');
+  if (!input) { out.textContent = '$ error: no input provided'; return; }
+
+  // Convert input to byte array
+  let msgBytes;
+  if (input.includes(',')) {
+    msgBytes = input.split(',').map(x => parseInt(x.trim()) & 0xFF);
+  } else {
+    msgBytes = Array.from(input).map(c => c.charCodeAt(0));
+  }
+
+  let log = '';
+  log += `<span class="step">$ reed_solomon.encode("${input}", ecc=${nsym})</span>\n\n`;
+  log += `<span class="step">-- Input bytes:</span>\n`;
+  log += `<span class="highlight">   [${msgBytes.join(', ')}]</span>\n\n`;
+
+  // GF(256) tables
+  const gfExp = new Array(512).fill(0);
+  const gfLog = new Array(256).fill(0);
+  let x = 1;
+  for (let i = 0; i < 255; i++) {
+    gfExp[i] = x;
+    gfLog[x] = i;
+    x <<= 1;
+    if (x & 0x100) x ^= 0x11d; // primitive polynomial
+  }
+  for (let i = 255; i < 512; i++) gfExp[i] = gfExp[i - 255];
+
+  function gfMul(a, b) {
+    if (a === 0 || b === 0) return 0;
+    return gfExp[gfLog[a] + gfLog[b]];
+  }
+
+  function gfPolyMul(p, q) {
+    const r = new Array(p.length + q.length - 1).fill(0);
+    for (let i = 0; i < p.length; i++)
+      for (let j = 0; j < q.length; j++)
+        r[i + j] ^= gfMul(p[i], q[j]);
+    return r;
+  }
+
+  // Generator polynomial
+  log += `<span class="step">-- Building generator polynomial (degree ${nsym}):</span>\n`;
+  let gen = [1];
+  for (let i = 0; i < nsym; i++) {
+    gen = gfPolyMul(gen, [1, gfExp[i]]);
+    log += `<span class="step">   g${i + 1}(x) = [${gen.join(', ')}]</span>\n`;
+  }
+
+  log += `\n<span class="step">-- Generator polynomial coefficients:</span>\n`;
+  log += `<span class="highlight">   [${gen.join(', ')}]</span>\n\n`;
+
+  // Polynomial division (encoding)
+  log += `<span class="step">-- Performing polynomial division in GF(256)...</span>\n`;
+  const msgPad = [...msgBytes, ...new Array(nsym).fill(0)];
+  const remainder = [...msgPad];
+
+  for (let i = 0; i < msgBytes.length; i++) {
+    const coef = remainder[i];
+    if (coef !== 0) {
+      for (let j = 1; j < gen.length; j++) {
+        remainder[i + j] ^= gfMul(gen[j], coef);
+      }
+    }
+  }
+
+  const eccBytes = remainder.slice(msgBytes.length);
+  const encoded = [...msgBytes, ...eccBytes];
+
+  log += `\n<span class="step">-- Error correction bytes:</span>\n`;
+  log += `<span class="highlight">   [${eccBytes.join(', ')}]</span>\n\n`;
+  log += `<span class="step">-- Full encoded message (${encoded.length} bytes):</span>\n`;
+  log += `<span class="result">   [${encoded.join(', ')}]</span>\n\n`;
+  log += `<span class="step">-- Hex:</span>\n`;
+  log += `<span class="result">   ${encoded.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}</span>\n\n`;
+  log += `<span class="step">-- Can correct up to ${Math.floor(nsym / 2)} byte errors</span>\n`;
+  log += `<span class="step">-- Can detect up to ${nsym} byte errors</span>`;
+
+  out.innerHTML = log;
+}
+
+// ══════════════════════════════════════════
+// BRAINFUCK INTERPRETER
+// ══════════════════════════════════════════
+const bfPrograms = {
+  hello: '++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.',
+  add: '+++++ +++++ (set cell0 to 10 = ASCII newline)\n> +++ (set cell1 to 3 = "1"s place)\n> ++ (set cell2 to 2 = "1"s place)\n[<+>-] (add cell2 into cell1)\n< (go to cell1)\n+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ ++ (add 48+2 for ASCII)\n. (print result: "2")',
+  loop: '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[.+]',
+  sierpinski: '++++++++[>+>++++<<-]>++>>+<[-[>>+<<-]+>>]>+[-<<<[->[+[-]+>++>>>-<<]<[<]>>++++++[<<+++++>>-]+<<++.[-]<<]>.>+[>>]>+]'
+};
+
+function bfLoad(name) {
+  document.getElementById('bfCode').value = bfPrograms[name];
+}
+
+function bfRun() {
+  let code = document.getElementById('bfCode').value.replace(/[^><+\-.,\[\]]/g, '');
+  const input = document.getElementById('bfInput').value;
+  const out = document.getElementById('bfOutput');
+
+  if (!code) { out.textContent = '$ error: no program provided'; return; }
+
+  const tape = new Array(30000).fill(0);
+  let ptr = 0, pc = 0, ic = 0, output = '';
+  let inputIdx = 0;
+  const MAX_STEPS = 500000;
+
+  // Precompute bracket matching
+  const brackets = {};
+  const stack = [];
+  for (let i = 0; i < code.length; i++) {
+    if (code[i] === '[') stack.push(i);
+    else if (code[i] === ']') {
+      if (stack.length === 0) { out.textContent = '$ error: unmatched ]'; return; }
+      const j = stack.pop();
+      brackets[j] = i;
+      brackets[i] = j;
+    }
+  }
+  if (stack.length) { out.textContent = '$ error: unmatched ['; return; }
+
+  let log = `<span class="step">$ brainfuck --execute (${code.length} instructions)</span>\n`;
+  log += `<span class="step">  tape: 30000 cells | max steps: ${MAX_STEPS.toLocaleString()}</span>\n\n`;
+
+  while (pc < code.length && ic < MAX_STEPS) {
+    const cmd = code[pc];
+    switch (cmd) {
+      case '>': ptr++; break;
+      case '<': ptr--; break;
+      case '+': tape[ptr] = (tape[ptr] + 1) & 0xFF; break;
+      case '-': tape[ptr] = (tape[ptr] - 1 + 256) & 0xFF; break;
+      case '.': output += String.fromCharCode(tape[ptr]); break;
+      case ',': tape[ptr] = inputIdx < input.length ? input.charCodeAt(inputIdx++) : 0; break;
+      case '[': if (tape[ptr] === 0) pc = brackets[pc]; break;
+      case ']': if (tape[ptr] !== 0) pc = brackets[pc]; break;
+    }
+    pc++;
+    ic++;
+  }
+
+  log += `<span class="step">-- Output:</span>\n`;
+  log += `<span class="result">${output || '(empty)'}</span>\n\n`;
+  log += `<span class="step">-- Steps executed: ${ic.toLocaleString()}</span>\n`;
+  if (ic >= MAX_STEPS) log += `<span class="step">-- (halted: step limit reached)</span>\n`;
+
+  // Show tape snapshot
+  const usedCells = Math.min(20, tape.findLastIndex(x => x !== 0) + 2);
+  log += `<span class="step">-- Tape snapshot [0..${usedCells - 1}]:</span>\n`;
+  log += `<span class="highlight">   [${tape.slice(0, usedCells).join(', ')}]</span>`;
+
+  out.innerHTML = log;
+}
+
+// ══════════════════════════════════════════
+// YOYO VISION SIMULATOR
+// ══════════════════════════════════════════
+const yoyoIdle = `  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0                  │
+  │  Camera: /dev/video0               │
+  │  Model:  MobileNetV2               │
+  │  Status: Idle                       │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │         [ NO FEED ]                 │
+  │                                     │
+  │    Press "run detection" to start   │
+  │                                     │
+  ├─────────────────────────────────────┤
+  │  FPS: --   Conf: --   Tricks: 0    │
+  └─────────────────────────────────────┘`;
+
+const yoyoFrames = [
+[`  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0     [RECORDING]  │
+  │  Camera: active                     │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │        ╭───╮                        │
+  │        │ O │  <- hand               │
+  │        ╰─┬─╯                        │
+  │          │                          │
+  │          │   string                 │
+  │          │                          │
+  │        ╭─┴─╮                        │
+  │        │ @ │  <- yoyo              │
+  │        ╰───╯                        │
+  │                                     │
+  ├─────────────────────────────────────┤
+  │  FPS: 28  Conf: 0.12  Scanning...  │
+  └─────────────────────────────────────┘`, 800],
+[`  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0     [RECORDING]  │
+  │  Camera: active                     │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │        ╭───╮                        │
+  │        │ O │──────╮                 │
+  │        ╰───╯      │ string          │
+  │                  ╭─┴─╮              │
+  │                  │ @ │ <- yoyo      │
+  │                  ╰───╯              │
+  │                                     │
+  │   >> Analyzing trajectory...        │
+  │                                     │
+  │                                     │
+  ├─────────────────────────────────────┤
+  │  FPS: 30  Conf: 0.67  Detecting... │
+  └─────────────────────────────────────┘`, 1000],
+[`  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0     [RECORDING]  │
+  │  Camera: active                     │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │        ╭───╮      ╭───╮             │
+  │        │ O │══════│ @ │             │
+  │        ╰───╯      ╰───╯             │
+  │           \\________/                │
+  │             string                  │
+  │                                     │
+  │   ┌──────────────────────────┐      │
+  │   │  ** MOUNT DETECTED **    │      │
+  │   │  Type: Trapeze           │      │
+  │   │  Confidence: 0.94        │      │
+  │   └──────────────────────────┘      │
+  ├─────────────────────────────────────┤
+  │  FPS: 30  Conf: 0.94  DETECTED!    │
+  └─────────────────────────────────────┘`, 1500],
+[`  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0     [RECORDING]  │
+  │  Camera: active                     │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │          ╭───╮                      │
+  │     ╭────│ O │────╮                 │
+  │     │    ╰───╯    │                 │
+  │   ╭─┴─╮         ╭─┴─╮              │
+  │   │ @ │         │ @ │              │
+  │   ╰───╯         ╰───╯              │
+  │                                     │
+  │   ┌──────────────────────────┐      │
+  │   │  ** MOUNT DETECTED **    │      │
+  │   │  Type: Double or Nothing │      │
+  │   │  Confidence: 0.89        │      │
+  │   └──────────────────────────┘      │
+  ├─────────────────────────────────────┤
+  │  FPS: 29  Conf: 0.89  DETECTED!    │
+  └─────────────────────────────────────┘`, 1500],
+[`  ┌─────────────────────────────────────┐
+  │  YOYO VISION v1.0     [COMPLETE]   │
+  │  Session summary                    │
+  ├─────────────────────────────────────┤
+  │                                     │
+  │  Tricks detected:    2              │
+  │  ──────────────────────             │
+  │  1. Trapeze              conf 0.94  │
+  │  2. Double or Nothing    conf 0.89  │
+  │                                     │
+  │  Average FPS:        29.3           │
+  │  Total frames:       347            │
+  │  Model:              MobileNetV2    │
+  │  Inference time:     12ms avg       │
+  │                                     │
+  │  Score: ████████░░ 82/100           │
+  │                                     │
+  ├─────────────────────────────────────┤
+  │  Session ended.                     │
+  └─────────────────────────────────────┘`, 0]
+];
+
+document.getElementById('yoyoScreen').textContent = yoyoIdle;
+
+function yoyoDetect() {
+  const el = document.getElementById('yoyoScreen');
+  let i = 0;
+  function next() {
+    if (i >= yoyoFrames.length) return;
+    el.textContent = yoyoFrames[i][0];
+    const delay = yoyoFrames[i][1];
+    i++;
+    if (delay > 0) setTimeout(next, delay);
+  }
+  el.textContent = '  Initializing camera...\n  Loading MobileNetV2 weights...\n  Starting detection loop...';
+  setTimeout(next, 600);
+}
+
+// ══════════════════════════════════════════
+// SCRAPER SIMULATOR
+// ══════════════════════════════════════════
+function scraperRun() {
+  const out = document.getElementById('scraperOutput');
+  const btn = document.getElementById('scraperBtn');
+  btn.disabled = true;
+  btn.style.opacity = '0.3';
+  out.innerHTML = '';
+
+  const events = [
+    { name: 'Techno Night @ Fuga', tags: 'music, electronic, nightlife', match: true },
+    { name: 'Bratislava Food Festival 2026', tags: 'food, festival, outdoor', match: true },
+    { name: 'Private Birthday Party', tags: 'private', match: false },
+    { name: 'React Meetup Bratislava', tags: 'tech, programming, meetup', match: true },
+    { name: 'Business Lunch Networking', tags: 'business, networking', match: false },
+    { name: 'Jazz in the Park', tags: 'music, jazz, outdoor', match: true },
+    { name: 'Startup Weekend BA', tags: 'tech, startup, hackathon', match: true },
+    { name: 'Wedding Reception', tags: 'private', match: false },
+    { name: 'Contemporary Art Exhibition', tags: 'art, exhibition, culture', match: true },
+    { name: 'Vianocne Trhy 2026', tags: 'market, christmas, seasonal', match: true },
+  ];
+
+  const lines = [
+    { t: '$ python scraper.py --city bratislava --verbose', d: 0 },
+    { t: '', d: 200 },
+    { t: '[INIT] Connecting to Bright Data proxy...', d: 400 },
+    { t: '[INIT] Proxy: brd-customer-xxxxx | Zone: residential_sk', d: 300 },
+    { t: '[INIT] Status: connected (IP: 185.xxx.xxx.xx)', d: 500 },
+    { t: '[INIT] Loading Slovak keyword dictionary (2,847 entries)...', d: 600 },
+    { t: '[INIT] Firebase/Firestore client initialized', d: 300 },
+    { t: '', d: 100 },
+    { t: '[SCRAPE] Target: facebook.com/events/bratislava', d: 400 },
+    { t: '[SCRAPE] Fetching page 1/3...', d: 800 },
+    { t: `[SCRAPE] Found ${events.length} raw events`, d: 400 },
+    { t: '', d: 100 },
+    { t: '[MATCH] Running keyword matcher against dictionary...', d: 500 },
+  ];
+
+  events.forEach((ev, i) => {
+    lines.push({
+      t: ev.match
+        ? `<span class="found">[MATCH] "${ev.name}" -> [${ev.tags}] -> MATCH</span>`
+        : `[MATCH] "${ev.name}" -> [${ev.tags}] -> skip`,
+      d: 250 + Math.random() * 200
+    });
+  });
+
+  const matched = events.filter(e => e.match).length;
+  lines.push({ t: '', d: 100 });
+  lines.push({ t: `[STORE] Writing ${matched} events to Firestore...`, d: 600 });
+  lines.push({ t: `<span class="found">[DONE] ${matched}/${events.length} events matched and stored</span>`, d: 400 });
+  lines.push({ t: `[DONE] Pipeline complete in 4.2s`, d: 0 });
+
+  let total = 0;
+  lines.forEach(line => {
+    total += line.d;
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.innerHTML = line.t;
+      out.appendChild(div);
+      out.scrollTop = out.scrollHeight;
+    }, total);
+  });
+
+  total += 500;
+  setTimeout(() => { btn.disabled = false; btn.style.opacity = '1'; }, total);
+}
+
+// ══════════════════════════════════════════
+// EASTER EGG — GLITCH EFFECT
+// ══════════════════════════════════════════
+const glitchChars = '!@#$%^&*()_+-=[]{}|;:,.<>?/~`0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+const glitchMessages = [
+  '> SYSTEM BREACH DETECTED',
+  '> UNAUTHORIZED ACCESS ATTEMPT',
+  '> FIREWALL STATUS: COMPROMISED',
+  '> DECRYPTING PORTFOLIO.DAT ...',
+  '> WARNING: BUFFER OVERFLOW IN SECTOR 7G',
+  '> INJECTING PAYLOAD ...',
+  '> ROOT ACCESS GRANTED',
+  '> cat /etc/shadow',
+  '> JUST KIDDING :)',
+  '> YOU FOUND THE EASTER EGG!',
+  '> NICE ONE, DETECTIVE.',
+  '',
+  '> fun fact: this entire portfolio',
+  '>   is a single HTML file.',
+  '>   no frameworks. no dependencies.',
+  '>   just vibes.',
+  '',
+  '> -- filip',
+];
+
+let glitchActive = false;
+
+function triggerGlitch() {
+  if (glitchActive) return;
+  glitchActive = true;
+
+  const overlay = document.getElementById('glitch-overlay');
+  const textEl = document.getElementById('glitch-text');
+  const page = document.getElementById('page-content');
+
+  // Phase 1: Random ASCII flood
+  overlay.classList.add('active');
+  page.classList.add('page-glitch');
+
+  const rows = Math.floor(window.innerHeight / 14);
+  const cols = Math.floor(window.innerWidth / 7);
+
+  let floodCount = 0;
+  const floodInterval = setInterval(() => {
+    let screen = '';
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        screen += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+      }
+      screen += '\n';
+    }
+    textEl.textContent = screen;
+    floodCount++;
+    if (floodCount > 8) clearInterval(floodInterval);
+  }, 50);
+
+  // Phase 2: Typed messages
+  setTimeout(() => {
+    page.classList.remove('page-glitch');
+    textEl.textContent = '';
+    let lineIdx = 0;
+    let charIdx = 0;
+    let currentText = '';
+
+    function typeNext() {
+      if (lineIdx >= glitchMessages.length) {
+        // Phase 3: Fade out
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          glitchActive = false;
+        }, 2000);
+        return;
+      }
+
+      const line = glitchMessages[lineIdx];
+
+      if (charIdx < line.length) {
+        currentText += line[charIdx];
+        // Add random glitch chars at cursor
+        const glitchTail = Array.from({length: 3}, () =>
+          glitchChars[Math.floor(Math.random() * glitchChars.length)]
+        ).join('');
+        textEl.textContent = currentText + glitchTail + '_';
+        charIdx++;
+        setTimeout(typeNext, 15 + Math.random() * 25);
+      } else {
+        currentText += '\n';
+        textEl.textContent = currentText + '_';
+        lineIdx++;
+        charIdx = 0;
+        setTimeout(typeNext, line === '' ? 100 : 200);
+      }
+    }
+
+    typeNext();
+  }, 500);
+}
+
+</script>
+</body>
+</html>
